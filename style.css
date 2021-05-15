@@ -1,0 +1,148 @@
+ @charset "utf-8";
+
+/* CSS Document */
+
+
+@import url(http://fonts.googleapis.com/css?family=Open+Sans:400,700);
+
+
+body {
+
+                background:#099F;
+
+                font-family: "open sans","arial";
+
+}
+
+a {
+
+                text-decoration:none;
+
+                color:#000;
+
+}
+
+a:hover {
+
+                color:#fff;
+
+}
+
+main {
+
+                background:#fff;
+
+                width:400px;
+
+                margin:50px auto;
+
+                padding:10px 30px 80px;
+
+                box-shadow: 0 3px 5px rgba(0,0,0,0.2);
+
+                border-radius:10px;
+
+}
+
+p {
+
+                font-size:13px;
+
+}
+
+
+/*important code*/
+
+input, section {
+
+                clear:both;
+
+                padding-top:10px;
+
+                display:none;
+
+}
+
+label {
+
+                font-weight:bold;
+
+                font-size:14px;
+
+                display: block;
+
+                float: left;
+
+                padding: 10px 30px;
+
+                border-top: 2px solid transparent;
+
+                border-right: 1px solid transparent;
+
+                border-left: 1px solid transparent;
+
+                border-bottom: 1px solid #DDD;
+
+}
+
+label:hover {
+
+                cursor:pointer;
+
+                text-decoration:underline;
+
+}
+
+#tab1:checked ~ #content1, #tab2:checked ~ #content2, #tab3:checked ~ #content3 {
+
+                display:block;
+
+}
+
+input:checked + label {
+
+                border-top-color:#000;
+
+                border-right-color:#ddd;
+
+                border-left-color:#ddd;
+
+                border-bottom-color: transparent;
+
+                text-decoration:none;
+
+}
+
+section {
+
+                border:1px solid #ddd;
+
+                border-top:none;
+
+                padding:10px;
+
+                width:351px;
+
+                border-radius:0 0 10px 10px;
+
+}
+
+#footer {
+
+                clear:both;
+
+                width:500px;
+
+                height:20px;
+
+                border-radius:10px;
+
+                padding:10px;
+
+                margin:0 auto;
+
+                background:#fff;
+
+                cursor:pointer;
+
+}
