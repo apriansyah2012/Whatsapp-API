@@ -6,7 +6,7 @@ const http = require('http');
 const fs = require('fs');
 const { phoneNumberFormatter } = require('./helpers/formatter');
 const axios = require('axios');
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 8000;
 
 const app = express();
 const server = http.createServer(app);
@@ -18,7 +18,7 @@ app.use(express.urlencoded({
 }));
 
 app.get('/', (req, res) => {
-  res.sendFile('index.html', {
+  res.sendFile('index-multiple-device.html', {
     root: __dirname
   });
 });
