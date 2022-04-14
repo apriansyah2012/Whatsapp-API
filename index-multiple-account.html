@@ -1,239 +1,127 @@
-const { Client, MessageMedia, LocalAuth } = require('whatsapp-web.js');
-const express = require('express');
-const socketIO = require('socket.io');
-const qrcode = require('qrcode');
-const http = require('http');
-const fs = require('fs');
-const { phoneNumberFormatter } = require('./helpers/formatter');
-const fileUpload = require('express-fileupload');
-const axios = require('axios');
-const port = process.env.PORT || 8000;
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Whatsapp API by Ngekoding</title>
+	<style>
+	.client {
+		border: 1px solid #ccc;
+		padding: 20px;
+		box-sizing: border-box;
+		display: inline-block;
+		margin: 10px;
+	}
+	.hide {
+		display: none;
+	}
+	</style>
+</head>
+<body>
 
-const app = express();
-const server = http.createServer(app);
-const io = socketIO(server);
+	<div id="app">
+		<h1>Whatsapp API</h1>
+		<p>Powered by Ngekoding</p>
+		<div class="form-container">
+			<label for="client-id">ID</label><br>
+			<input type="text" id="client-id" placeholder="Masukkan ID">
+			<br><br>
+			<label for="client-description">Deskripsi</label><br>
+			<textarea rows="3" id="client-description" placeholder="Masukkan deskripsi"></textarea>
+			<br><br>
+			<button class="add-client-btn">Tambah Client</button>
+		</div>
+		<hr>
+		<div class="client-container">
+			<div class="client hide">
+				<h3 class="title"></h3>
+				<p class="description"></p>
+				<img src="" alt="QR Code" id="qrcode">
+				<h3>Logs:</h3>
+				<ul class="logs"></ul>
+			</div>
+		</div>
+	</div>
 
-app.use(express.json());
-app.use(express.urlencoded({
-  extended: true
-}));
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+	<script>
+		$(document).ready(function() {
+			var socket = io();
 
-/**
- * BASED ON MANY QUESTIONS
- * Actually ready mentioned on the tutorials
- * 
- * The two middlewares above only handle for data json & urlencode (x-www-form-urlencoded)
- * So, we need to add extra middleware to handle form-data
- * Here we can use express-fileupload
- */
-app.use(fileUpload({
-  debug: false
-}));
+			// Ketika button tambah diklik
+			$('.add-client-btn').click(function() {
+				var clientId = $('#client-id').val();
+				var clientDescription = $('#client-description').val();
 
-app.get('/', (req, res) => {
-  res.sendFile('index-multiple-account.html', {
-    root: __dirname
-  });
-});
+        /**
+         * Some peoples want to use the phone number as the ID
+         * But because we use the ID as the html class attribute value: class="<The ID>"
+         * It won't work. Read more on https://www.w3.org/TR/REC-html40/types.html#type-cdata
+         * 
+         * So, here we add the prefix to solve that problem
+         * Each ID will automatically added a 'client-' prefix for the class attribute
+         */
+        var clientClass = 'client-' + clientId;
+				var template = $('.client').first().clone()
+										   .removeClass('hide')
+										   .addClass(clientClass);
 
-const sessions = [];
-const SESSIONS_FILE = './whatsapp-sessions.json';
+				template.find('.title').html(clientId);
+				template.find('.description').html(clientDescription);
+				$('.client-container').append(template);
 
-const createSessionsFileIfNotExists = function() {
-  if (!fs.existsSync(SESSIONS_FILE)) {
-    try {
-      fs.writeFileSync(SESSIONS_FILE, JSON.stringify([]));
-      console.log('Sessions file created successfully.');
-    } catch(err) {
-      console.log('Failed to create sessions file: ', err);
-    }
-  }
-}
+				socket.emit('create-session', {
+					id: clientId,
+					description: clientDescription
+				});
+			});
 
-createSessionsFileIfNotExists();
+			socket.on('init', function(data) {
+				$('.client-container .client').not(':first').remove();
+				console.log(data);
+				for (var i = 0; i < data.length; i++) {
+					var session = data[i];
 
-const setSessionsFile = function(sessions) {
-  fs.writeFile(SESSIONS_FILE, JSON.stringify(sessions), function(err) {
-    if (err) {
-      console.log(err);
-    }
-  });
-}
+					var clientId = session.id;
+					var clientDescription = session.description;
 
-const getSessionsFile = function() {
-  return JSON.parse(fs.readFileSync(SESSIONS_FILE));
-}
+          var clientClass = 'client-' + clientId;
+					var template = $('.client').first().clone()
+											   .removeClass('hide')
+											   .addClass(clientClass);
 
-const createSession = function(id, description) {
-  console.log('Creating session: ' + id);
-  const client = new Client({
-    restartOnAuthFail: true,
-    puppeteer: {
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process', // <- this one doesn't works in Windows
-        '--disable-gpu'
-      ],
-    },
-    authStrategy: new LocalAuth({
-      clientId: id
-    })
-  });
+					template.find('.title').html(clientId);
+					template.find('.description').html(clientDescription);
+					$('.client-container').append(template);
 
-  client.initialize();
+					if (session.ready) {
+						$(`.client.${clientClass} .logs`).append($('<li>').text('Whatsapp is ready!'));
+					} else {
+						$(`.client.${clientClass} .logs`).append($('<li>').text('Connecting...'));
+					}
+				}
+			});
 
-  client.on('qr', (qr) => {
-    console.log('QR RECEIVED', qr);
-    qrcode.toDataURL(qr, (err, url) => {
-      io.emit('qr', { id: id, src: url });
-      io.emit('message', { id: id, text: 'QR Code received, scan please!' });
-    });
-  });
+			socket.on('remove-session', function(id) {
+				$(`.client.client-${id}`).remove();
+			});
 
-  client.on('ready', () => {
-    io.emit('ready', { id: id });
-    io.emit('message', { id: id, text: 'Whatsapp is ready!' });
+			socket.on('message', function(data) {
+				$(`.client.client-${data.id} .logs`).append($('<li>').text(data.text));
+			});
 
-    const savedSessions = getSessionsFile();
-    const sessionIndex = savedSessions.findIndex(sess => sess.id == id);
-    savedSessions[sessionIndex].ready = true;
-    setSessionsFile(savedSessions);
-  });
+			socket.on('qr', function(data) {
+				$(`.client.client-${data.id} #qrcode`).attr('src', data.src);
+				$(`.client.client-${data.id} #qrcode`).show();
+			});
 
-  client.on('authenticated', () => {
-    io.emit('authenticated', { id: id });
-    io.emit('message', { id: id, text: 'Whatsapp is authenticated!' });
-  });
+			socket.on('ready', function(data) {
+				$(`.client.client-${data.id} #qrcode`).hide();
+			});
 
-  client.on('auth_failure', function() {
-    io.emit('message', { id: id, text: 'Auth failure, restarting...' });
-  });
-
-  client.on('disconnected', (reason) => {
-    io.emit('message', { id: id, text: 'Whatsapp is disconnected!' });
-    client.destroy();
-    client.initialize();
-
-    // Menghapus pada file sessions
-    const savedSessions = getSessionsFile();
-    const sessionIndex = savedSessions.findIndex(sess => sess.id == id);
-    savedSessions.splice(sessionIndex, 1);
-    setSessionsFile(savedSessions);
-
-    io.emit('remove-session', id);
-  });
-
-  // Tambahkan client ke sessions
-  sessions.push({
-    id: id,
-    description: description,
-    client: client
-  });
-
-  // Menambahkan session ke file
-  const savedSessions = getSessionsFile();
-  const sessionIndex = savedSessions.findIndex(sess => sess.id == id);
-
-  if (sessionIndex == -1) {
-    savedSessions.push({
-      id: id,
-      description: description,
-      ready: false,
-    });
-    setSessionsFile(savedSessions);
-  }
-}
-
-const init = function(socket) {
-  const savedSessions = getSessionsFile();
-
-  if (savedSessions.length > 0) {
-    if (socket) {
-      /**
-       * At the first time of running (e.g. restarting the server), our client is not ready yet!
-       * It will need several time to authenticating.
-       * 
-       * So to make people not confused for the 'ready' status
-       * We need to make it as FALSE for this condition
-       */
-      savedSessions.forEach((e, i, arr) => {
-        arr[i].ready = false;
-      });
-
-      socket.emit('init', savedSessions);
-    } else {
-      savedSessions.forEach(sess => {
-        createSession(sess.id, sess.description);
-      });
-    }
-  }
-}
-
-init();
-
-// Socket IO
-io.on('connection', function(socket) {
-  init(socket);
-
-  socket.on('create-session', function(data) {
-    console.log('Create session: ' + data.id);
-    createSession(data.id, data.description);
-  });
-});
-
-// Send message
-app.post('/send-message', async (req, res) => {
-  console.log(req);
-
-  const sender = req.body.sender;
-  const number = phoneNumberFormatter(req.body.number);
-  const message = req.body.message;
-
-  const client = sessions.find(sess => sess.id == sender)?.client;
-
-  // Make sure the sender is exists & ready
-  if (!client) {
-    return res.status(422).json({
-      status: false,
-      message: `The sender: ${sender} is not found!`
-    })
-  }
-
-  /**
-   * Check if the number is already registered
-   * Copied from app.js
-   * 
-   * Please check app.js for more validations example
-   * You can add the same here!
-   */
-  const isRegisteredNumber = await client.isRegisteredUser(number);
-
-  if (!isRegisteredNumber) {
-    return res.status(422).json({
-      status: false,
-      message: 'The number is not registered'
-    });
-  }
-
-  client.sendMessage(number, message).then(response => {
-    res.status(200).json({
-      status: true,
-      response: response
-    });
-  }).catch(err => {
-    res.status(500).json({
-      status: false,
-      response: err
-    });
-  });
-});
-
-server.listen(port, function() {
-  console.log('App running on *: ' + port);
-});
+			socket.on('authenticated', function(data) {
+				$(`.client.client-${data.id} #qrcode`).hide();
+			});
+		});
+	</script>
+</body>
+</html>
