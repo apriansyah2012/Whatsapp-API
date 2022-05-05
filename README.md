@@ -1,4 +1,4 @@
-Whatsapp-API Khanza-Lite-3
+Whatsapp-API MULTI DEVICE and Multi Account
 
 
 Tutorial Setting WA  Whatsapp-API
